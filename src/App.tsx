@@ -16,7 +16,27 @@ export function App() {
   const [data, setData] = useState<MediaKitData>(initialMediaKitData)
   const [errors, setErrors] = useState<string[]>([])
   const [isExporting, setIsExporting] = useState(false)
+  const [sampleMode, setSampleMode] = useState(false)
   const previewRef = useRef<HTMLDivElement>(null)
+
+  const fillWithSample = () => {
+    setData((current) => ({
+      ...sampleData,
+      portrait: current.portrait ?? sampleData.portrait,
+      cases: [
+        { ...sampleData.cases[0], proofImage: current.cases[0].proofImage ?? sampleData.cases[0].proofImage },
+        { ...sampleData.cases[1], proofImage: current.cases[1].proofImage ?? sampleData.cases[1].proofImage },
+      ],
+    }))
+    setSampleMode(true)
+    setErrors([])
+  }
+
+  const clearForm = () => {
+    setData(initialMediaKitData)
+    setSampleMode(false)
+    setErrors([])
+  }
 
   const openPreview = () => {
     const nextErrors = validateForPreview(data)
@@ -55,14 +75,14 @@ export function App() {
       {screen === 'intro' && <Intro onStart={() => setScreen('form')} />}
 
       {screen === 'form' && (
-        <>
-          <div className="demo-tools">
-            <span>Для быстрого просмотра первой версии</span>
-            <button type="button" onClick={() => setData(sampleData)}>Заполнить примером</button>
-            <button type="button" onClick={() => setData(initialMediaKitData)}>Очистить</button>
-          </div>
-          <Wizard data={data} onChange={setData} onPreview={openPreview} />
-        </>
+        <Wizard
+          data={data}
+          onChange={setData}
+          onPreview={openPreview}
+          sampleMode={sampleMode}
+          onFillSample={fillWithSample}
+          onClear={clearForm}
+        />
       )}
 
       {screen === 'preview' && (

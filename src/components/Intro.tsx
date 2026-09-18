@@ -34,15 +34,27 @@ export function Intro({ onStart }: IntroProps) {
   return (
     <main className="intro" aria-labelledby="intro-title">
       <section className="intro__hero">
-        <div className="intro__eyebrow"><span aria-hidden="true" /> Конструктор медиакита турагента</div>
-        <h1 id="intro-title">Расскажите о себе.<br /><em>Мы соберём медиакит.</em></h1>
-        <p className="intro__lead">
-          Заполните простую анкету и получите готовый PDF из четырёх слайдов — без ручной вёрстки и редактирования презентации.
-        </p>
-        <button className="button button--primary button--hero" type="button" onClick={onStart}>
-          Создать медиакит <span aria-hidden="true">→</span>
-        </button>
-        <p className="intro__time">Бесплатно · без регистрации · около 10 минут</p>
+        <div className="intro__hero-content">
+          <div className="intro__eyebrow"><span aria-hidden="true" /> Конструктор медиакита турагента</div>
+          <h1 id="intro-title">Расскажите о себе.<br /><em>Мы соберём медиакит.</em></h1>
+          <p className="intro__lead">
+            Заполните простую анкету и получите готовый PDF из четырёх слайдов — без ручной вёрстки и редактирования презентации.
+          </p>
+          <button className="button button--primary button--hero" type="button" onClick={onStart}>
+            Создать медиакит <span aria-hidden="true">→</span>
+          </button>
+          <p className="intro__time">Бесплатно · без регистрации · около 10 минут</p>
+        </div>
+
+        <div className="intro__visual" aria-hidden="true">
+          <div className="intro__visual-back" />
+          <div className="intro__visual-card">
+            <span className="intro__visual-label">MEDIA KIT</span>
+            <strong>КТО Я</strong>
+            <div className="intro__visual-lines"><i /><i /><i /></div>
+            <div className="intro__visual-footer">ТУРАГЕНТ · ПУТЕШЕСТВИЯ</div>
+          </div>
+        </div>
       </section>
 
       <section className="intro__section" aria-labelledby="intro-questions">

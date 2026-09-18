@@ -1,22 +1,12 @@
 import type { MediaKitData } from './model'
 
-const samplePortrait = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
-  <svg xmlns="http://www.w3.org/2000/svg" width="720" height="900" viewBox="0 0 720 900">
-    <rect width="720" height="900" fill="#efe7d3"/>
-    <circle cx="360" cy="305" r="145" fill="#d9b18c"/>
-    <path d="M165 900c9-211 77-325 195-325s186 114 195 325" fill="#151515"/>
-    <path d="M230 292c8-118 63-185 139-185 101 0 151 82 137 211-33-67-90-102-171-102-42 0-77 25-105 76z" fill="#38261d"/>
-    <text x="360" y="830" text-anchor="middle" fill="#f8c514" font-family="Arial, sans-serif" font-size="30">ВАШЕ ФОТО</text>
-  </svg>
-`)}`
-
 /** Готовый пример для быстрого просмотра всех четырёх страниц медиакита. */
 export const sampleData: MediaKitData = {
   specialization: 'Семейные путешествия',
-  fullName: 'Анна Смирнова',
-  portrait: samplePortrait,
+  fullName: 'Мария Демонстрационная',
+  portrait: undefined,
   about:
-    'Я турагент с восьмилетним опытом и специализируюсь на продуманных семейных поездках. Подбираю маршруты, в которых комфортно и взрослым, и детям, остаюсь на связи до возвращения домой.',
+    'Это вымышленный пример турагента с восьмилетним опытом. Я специализируюсь на продуманных семейных поездках, подбираю маршруты, в которых комфортно взрослым и детям, и остаюсь на связи до возвращения домой.',
   positioning:
     'Помогаю семьям организовать спокойный отдых у моря с учётом возраста детей, бюджета и пожеланий каждого.',
   destinations: ['Турция', 'ОАЭ', 'Таиланд', 'Мальдивы'],
@@ -40,24 +30,24 @@ export const sampleData: MediaKitData = {
   cases: [
     {
       request: 'Семья с двумя детьми хотела отдохнуть у моря без ночных перелётов и уложиться в 320 000 ₽.',
-      action: 'Сравнила семейные отели, нашла прямой дневной рейс и заранее согласовала питание для младшего ребёнка.',
+      action: 'В этом примере я сравнила отели, нашла прямой дневной рейс и заранее согласовала детское питание.',
       result: 'Семья уложилась в бюджет, хорошо отдохнула и через полгода вернулась за новой поездкой.',
     },
     {
       request: 'Пара планировала первую поездку в Азию и хотела совместить пляж, экскурсии и три города.',
-      action: 'Собрала единый маршрут с удобными переездами, проверенными отелями и запасом времени между рейсами.',
+      action: 'В демонстрационном кейсе я собрала маршрут с удобными переездами, отелями и запасом времени между рейсами.',
       result: 'Путешествие прошло по плану, а туристы порекомендовали меня двум друзьям.',
     },
   ],
-  phone: '+7 900 123-45-67',
-  telegramNick: '@anna_travel',
-  telegramUrl: 'https://t.me/anna_travel',
+  phone: '+7 000 000-00-00',
+  telegramNick: '@demo_travel_agent',
+  telegramUrl: 'https://social.example.com/demo-telegram',
   // В шаблоне Instagram и VK показываются в одной строке через «/».
-  instagramNick: '@anna.travel',
-  instagramUrl: 'https://instagram.com/anna.travel',
-  vkNick: 'vk.com/anna.travel',
-  vkUrl: 'https://vk.com/anna.travel',
-  website: 'https://anna-travel.example',
-  qrTarget: 'telegram',
-  finalPhrase: 'Буду рада познакомиться и обсудить сотрудничество',
+  instagramNick: '@demo.travel.agent',
+  instagramUrl: 'https://social.example.com/demo-instagram',
+  vkNick: '@demo_travel_vk',
+  vkUrl: 'https://social.example.com/demo-vk',
+  website: 'https://travel-agent.example.com',
+  qrTarget: 'website',
+  finalPhrase: 'Это демонстрационный медиакит с вымышленными данными',
 }

@@ -1,12 +1,16 @@
 import { ChangeEvent, FormEvent, useMemo, useRef, useState } from 'react'
 import type { CaseStudy, MediaKitData } from '../model'
 import { limits } from '../model'
+import { sampleData } from '../sampleData'
 import './components.css'
 
 export type WizardProps = {
   data: MediaKitData
   onChange: (data: MediaKitData) => void
   onPreview: () => void
+  sampleMode: boolean
+  onFillSample: () => void
+  onClear: () => void
 }
 
 type StringListKey = 'destinations' | 'tourists' | 'partnerBenefits' | 'requests'
@@ -24,6 +28,23 @@ const listSettings: Record<StringListKey, { maxItems: number; maxLength: number 
   tourists: { maxItems: limits.tourists, maxLength: limits.tourist },
   partnerBenefits: { maxItems: limits.partnerBenefits, maxLength: limits.partnerBenefit },
   requests: { maxItems: limits.requests, maxLength: limits.request },
+}
+
+function isCurrentStepStillSample(step: number, data: MediaKitData) {
+  const valuesByStep = {
+    1: [data.specialization, data.fullName, data.portrait, data.about, data.positioning, data.destinations],
+    2: [data.tourists, data.partnerBenefits, data.requests],
+    3: [data.years, data.directionsCount, data.countriesCount, data.tripsCount, data.cases],
+    4: [data.phone, data.telegramNick, data.telegramUrl, data.instagramNick, data.instagramUrl, data.vkNick, data.vkUrl, data.website, data.qrTarget, data.finalPhrase],
+  }
+  const sampleValuesByStep = {
+    1: [sampleData.specialization, sampleData.fullName, sampleData.portrait, sampleData.about, sampleData.positioning, sampleData.destinations],
+    2: [sampleData.tourists, sampleData.partnerBenefits, sampleData.requests],
+    3: [sampleData.years, sampleData.directionsCount, sampleData.countriesCount, sampleData.tripsCount, sampleData.cases],
+    4: [sampleData.phone, sampleData.telegramNick, sampleData.telegramUrl, sampleData.instagramNick, sampleData.instagramUrl, sampleData.vkNick, sampleData.vkUrl, sampleData.website, sampleData.qrTarget, sampleData.finalPhrase],
+  }
+
+  return JSON.stringify(valuesByStep[step as keyof typeof valuesByStep]) === JSON.stringify(sampleValuesByStep[step as keyof typeof sampleValuesByStep])
 }
 
 function CharacterCount({ value, max }: { value: string; max: number }) {
@@ -120,12 +141,10 @@ function ImageUpload({
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState('')
-  const [notice, setNotice] = useState('')
 
   const readImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     setError('')
-    setNotice('')
     if (!file) return
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       setError('Выберите изображение в формате JPEG, PNG или WebP.')
@@ -143,19 +162,30 @@ function ImageUpload({
       const result = String(reader.result)
       const image = new Image()
       image.onload = () => {
-        if (purpose === 'portrait' && (image.width < 800 || image.height < 1000)) {
-          setNotice('Фото загружено, но для чёткого результата лучше использовать размер не менее 800 × 1000 px.')
-        }
         if (purpose === 'portrait') {
           const ratio = image.width / image.height
-          if (Math.abs(ratio - 0.8) > 0.12) {
-            setNotice('Фото загружено. Лучше всего подойдёт вертикальный портрет с соотношением сторон 4:5 — лишнее будет обрезано.')
+          if (image.width < 800 || image.height < 1000) {
+            setError(`Портрет слишком маленький: ${image.width} × ${image.height} px. Нужен вертикальный кадр не менее 800 × 1000 px.`)
+            event.target.value = ''
+            return
+          }
+          if (Math.abs(ratio - 4 / 5) > 0.03) {
+            setError(`Портрет имеет неподходящие пропорции (${image.width} × ${image.height} px). Загрузите вертикальный кадр 4:5 — мы не обрезаем фотографию автоматически.`)
+            event.target.value = ''
+            return
           }
         }
         if (purpose === 'proof') {
           const ratio = image.width / image.height
-          if (image.width < 800 || image.height < 600 || Math.abs(ratio - 4 / 3) > 0.18) {
-            setNotice('Фото загружено. Для лучшей читаемости используйте горизонтальный формат 4:3 размером не менее 800 × 600 px.')
+          if (image.width < 800 || image.height < 600) {
+            setError(`Изображение слишком маленькое: ${image.width} × ${image.height} px. Нужен горизонтальный кадр не менее 800 × 600 px.`)
+            event.target.value = ''
+            return
+          }
+          if (Math.abs(ratio - 4 / 3) > 0.03) {
+            setError(`Неподходящие пропорции (${image.width} × ${image.height} px). Загрузите горизонтальный кадр 4:3 — мы не обрезаем изображение автоматически.`)
+            event.target.value = ''
+            return
           }
         }
         onChange(result)
@@ -172,8 +202,8 @@ function ImageUpload({
       <FieldLabel optional={optional}>{label}</FieldLabel>
       <p className="field__hint" id={`${id}-hint`}>
         {purpose === 'portrait'
-          ? 'Вертикальный портрет 4:5, желательно не менее 800 × 1000 px.'
-          : 'Горизонтальное фото, отзыв или сертификат 4:3, желательно не менее 800 × 600 px. Оно появится внутри кейса.'}
+          ? 'Вертикальный портрет строго 4:5, не менее 800 × 1000 px. Кадр не обрезается.'
+          : 'Горизонтальное фото, отзыв или сертификат строго 4:3, не менее 800 × 600 px. Кадр не обрезается и появится внутри кейса.'}
         {' '}JPEG, PNG или WebP, до {purpose === 'proof' ? 4 : 8} МБ.
       </p>
       <div className="upload-box">
@@ -199,7 +229,6 @@ function ImageUpload({
         </div>
       </div>
       {error && <p className="field__message field__message--error" id={`${id}-error`} role="alert">{error}</p>}
-      {notice && <p className="field__message" role="status">{notice}</p>}
     </div>
   )
 }
@@ -227,11 +256,13 @@ function UrlField({
   )
 }
 
-export function Wizard({ data, onChange, onPreview }: WizardProps) {
+export function Wizard({ data, onChange, onPreview, sampleMode, onFillSample, onClear }: WizardProps) {
   const [step, setStep] = useState(1)
+  const [sampleError, setSampleError] = useState('')
   const topRef = useRef<HTMLDivElement>(null)
 
   const setField = <K extends keyof MediaKitData>(key: K, value: MediaKitData[K]) => {
+    setSampleError('')
     onChange({ ...data, [key]: value })
   }
 
@@ -257,6 +288,7 @@ export function Wizard({ data, onChange, onPreview }: WizardProps) {
   ].filter(Boolean) as { value: Exclude<MediaKitData['qrTarget'], ''>; label: string }[], [data])
 
   const goTo = (next: number) => {
+    setSampleError('')
     setStep(next)
     requestAnimationFrame(() => topRef.current?.focus())
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -264,6 +296,11 @@ export function Wizard({ data, onChange, onPreview }: WizardProps) {
 
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (sampleMode && isCurrentStepStillSample(step, data)) {
+      setSampleError('Это демонстрационный текст. Измените хотя бы одно поле на этом шаге и укажите свои данные — после этого можно продолжить.')
+      return
+    }
+    setSampleError('')
     if (step < 4) goTo(step + 1)
     else onPreview()
   }
@@ -276,7 +313,10 @@ export function Wizard({ data, onChange, onPreview }: WizardProps) {
           <h1>Заполните анкету</h1>
           <p>Не старайтесь писать много: короткие конкретные ответы лучше читаются в готовом медиаките.</p>
         </div>
-        <span className="wizard__progress-text">Шаг {step} из 4</span>
+        <div className="wizard__progress-side">
+          <span className="wizard__progress-text">Шаг {step} из 4</span>
+          <span className="wizard__sample-sticker">Хотите посмотреть пример?<br /><b>Кнопка ниже формы ↓</b></span>
+        </div>
       </div>
 
       <nav className="stepper" aria-label="Шаги заполнения">
@@ -306,13 +346,6 @@ export function Wizard({ data, onChange, onPreview }: WizardProps) {
               <h2 id={`step-${step}-title`}>{steps[step - 1].title}</h2>
             </div>
           </div>
-
-          {step > 1 && (
-            <aside className="carry-note">
-              <span aria-hidden="true">✓</span>
-              <p><b>Имя и специализация уже подставятся автоматически.</b><br />Повторно вводить их не нужно.</p>
-            </aside>
-          )}
 
           {step === 1 && (
             <div className="form-layout">
@@ -497,6 +530,19 @@ export function Wizard({ data, onChange, onPreview }: WizardProps) {
             </div>
           )}
         </section>
+
+        <aside className="demo-panel" aria-label="Демонстрационное заполнение">
+          <div>
+            <strong>Хотите быстро посмотреть, как всё работает?</strong>
+            <p>Подставьте вымышленные данные, затем обязательно замените их своими на каждом шаге.</p>
+          </div>
+          <div className="demo-panel__actions">
+            <button className="button button--primary" type="button" onClick={() => { setSampleError(''); onFillSample() }}>Заполнить примером</button>
+            <button className="button button--secondary" type="button" onClick={() => { setSampleError(''); onClear() }}>Очистить анкету</button>
+          </div>
+        </aside>
+
+        {sampleError && <p className="sample-error" role="alert">{sampleError}</p>}
 
         <div className="wizard__actions">
           {step > 1 ? <button className="button button--secondary" type="button" onClick={() => goTo(step - 1)}>← Назад</button> : <span />}

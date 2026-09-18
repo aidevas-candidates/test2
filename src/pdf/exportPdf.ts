@@ -62,22 +62,11 @@ function collectLinkZones(slide: HTMLElement): LinkZone[] {
   })
 }
 
-function transliterate(value: string) {
-  const source = 'абвгдеёзийклмнопрстуфхцчшщъыьэюя'
-  const target = ['a', 'b', 'v', 'g', 'd', 'e', 'e', 'z', 'i', 'y', 'k', 'l', 'm', 'n', 'o', 'p', 'r', 's', 't', 'u', 'f', 'h', 'c', 'ch', 'sh', 'sch', '', 'y', '', 'e', 'yu', 'ya']
-  return Array.from(value.toLowerCase()).map((character) => {
-    const index = source.indexOf(character)
-    return index >= 0 ? target[index] : character
-  }).join('')
-}
-
-function fileSlug(fullName: string) {
-  return transliterate(fullName)
-    .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 56) || 'turagent'
+function safeFileNamePart(fullName: string) {
+  return fullName
+    .trim()
+    .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '')
+    .replace(/[. ]+$/g, '') || 'Турагент'
 }
 
 export async function exportMediaKitPdf(container: HTMLElement, data: MediaKitData): Promise<void> {
@@ -130,10 +119,11 @@ export async function exportMediaKitPdf(container: HTMLElement, data: MediaKitDa
     })
   }
 
+  const personName = safeFileNamePart(data.fullName)
   pdf.setProperties({
-    title: `Медиакит — ${data.fullName.trim() || 'турагент'}`,
+    title: `Медиакит — ${personName}`,
     subject: 'Медиакит турагента',
     creator: 'Конструктор медиакита',
   })
-  pdf.save(`media-kit-${fileSlug(data.fullName)}.pdf`)
+  pdf.save(`Media Kit — ${personName}.pdf`)
 }

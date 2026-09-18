@@ -6,7 +6,8 @@ type MediaKitPreviewProps = {
   data: MediaKitData
 }
 
-const ASSET_ROOT = '/assets/media-kit'
+const ASSET_ROOT = `${import.meta.env.BASE_URL}assets/media-kit`
+const DEFAULT_AVATAR = `${import.meta.env.BASE_URL}assets/default-avatar.svg`
 const FALLBACK = '—'
 
 function present(value: string, fallback = FALLBACK) {
@@ -89,7 +90,7 @@ function CaseCard({ item, index }: { item: CaseStudy; index: number }) {
         <h3>ЗАПРОС</h3>
         <p>{present(item.request, '[с чем пришёл турист]')}</p>
       </div>
-      <div className="mk-case-part">
+      <div className="mk-case-part mk-case-part--action">
         <h3>ЧТО СДЕЛАЛИ</h3>
         <p>{present(item.action, '[что вы подобрали / организовали]')}</p>
       </div>
@@ -141,8 +142,8 @@ function SlideOne({ data }: MediaKitPreviewProps) {
 
       <div className="mk-s1-portrait-frame">
         {data.portrait
-          ? <img src={data.portrait} alt={`Портрет: ${present(data.fullName, 'турагент')}`} />
-          : <span>ФОТО</span>}
+          ? <img className="mk-s1-portrait" src={data.portrait} alt={`Портрет: ${present(data.fullName, 'турагент')}`} />
+          : <img className="mk-s1-avatar-placeholder" src={DEFAULT_AVATAR} alt="Портрет не загружен" />}
       </div>
     </SlideFrame>
   )
