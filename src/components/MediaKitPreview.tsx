@@ -14,6 +14,13 @@ function present(value: string, fallback = FALLBACK) {
   return value.trim() || fallback
 }
 
+function densityClass(value: string, longAt = 40, veryLongAt = 70) {
+  const length = value.trim().length
+  if (length > veryLongAt) return 'is-very-long'
+  if (length > longAt) return 'is-long'
+  return ''
+}
+
 function compactList(values: string[]) {
   return values.map((value) => value.trim()).filter(Boolean)
 }
@@ -75,7 +82,7 @@ function PageNumber({ page }: { page: string }) {
 function List({ items, className = '' }: { items: string[]; className?: string }) {
   return (
     <ul className={`mk-list ${className}`}>
-      {items.map((item, index) => <li key={`${item}-${index}`}>{item}</li>)}
+      {items.map((item, index) => <li className={densityClass(item)} key={`${item}-${index}`}>{item}</li>)}
     </ul>
   )
 }
@@ -88,15 +95,15 @@ function CaseCard({ item, index }: { item: CaseStudy; index: number }) {
       {item.proofImage && <img className="mk-case-proof" src={item.proofImage} alt="Подтверждение результата" />}
       <div className="mk-case-part mk-case-part--request">
         <h3>ЗАПРОС</h3>
-        <p>{present(item.request, '[с чем пришёл турист]')}</p>
+        <p className={densityClass(item.request, 95, 130)}>{present(item.request, '[с чем пришёл турист]')}</p>
       </div>
       <div className="mk-case-part mk-case-part--action">
         <h3>ЧТО СДЕЛАЛИ</h3>
-        <p>{present(item.action, '[что вы подобрали / организовали]')}</p>
+        <p className={densityClass(item.action, 95, 130)}>{present(item.action, '[что вы подобрали / организовали]')}</p>
       </div>
       <div className="mk-case-part">
         <h3>РЕЗУЛЬТАТ</h3>
-        <p>{present(item.result, '[что получилось]')}</p>
+        <p className={densityClass(item.result, 95, 130)}>{present(item.result, '[что получилось]')}</p>
       </div>
     </article>
   )
@@ -130,13 +137,13 @@ function SlideOne({ data }: MediaKitPreviewProps) {
       <img className="mk-s1-bg" src={`${ASSET_ROOT}/image1.jpg`} alt="" />
       <div className="mk-s1-overlay" />
       <PageNumber page="01" />
-      <div className="mk-s1-specialization">ТУРАГЕНТ · {present(data.specialization, '[СПЕЦИАЛИЗАЦИЯ]')}</div>
+      <div className={`mk-s1-specialization ${densityClass(data.specialization, 30, 44)}`}>ТУРАГЕНТ · {present(data.specialization, '[СПЕЦИАЛИЗАЦИЯ]')}</div>
       <h2 className="mk-s1-title">КТО Я</h2>
-      <p className="mk-s1-about">{present(data.about, '[2–4 предложения о себе, опыте и подходе к работе]')}</p>
+      <p className={`mk-s1-about ${densityClass(data.about, 280, 330)}`}>{present(data.about, '[2–4 предложения о себе, опыте и подходе к работе]')}</p>
 
       <div className="mk-s1-yellow" />
-      <h3 className="mk-s1-name">{present(data.fullName, 'ИМЯ ФАМИЛИЯ')}</h3>
-      <p className="mk-s1-positioning">« {present(data.positioning, 'Я помогаю подобрать отдых с учётом ваших пожеланий')} »</p>
+      <h3 className={`mk-s1-name ${densityClass(data.fullName, 30, 40)}`}>{present(data.fullName, 'ИМЯ ФАМИЛИЯ')}</h3>
+      <p className={`mk-s1-positioning ${densityClass(data.positioning, 120, 150)}`}>« {present(data.positioning, 'Я помогаю подобрать отдых с учётом ваших пожеланий')} »</p>
       <h4 className="mk-s1-directions-title">МОИ НАПРАВЛЕНИЯ</h4>
       <List items={destinations.length ? destinations : ['Направление 1', 'Направление 2']} className="mk-s1-directions" />
 
@@ -173,7 +180,7 @@ function SlideTwo({ data }: MediaKitPreviewProps) {
         <h3>КАКИЕ ЗАПРОСЫ<br />Я РЕШАЮ</h3>
         <ol>
           {(requests.length ? requests : ['Организовать путешествие под запрос']).map((item, index) => (
-            <li key={`${item}-${index}`}><span>{index + 1}</span><p>{item}</p></li>
+            <li key={`${item}-${index}`}><span>{index + 1}</span><p className={densityClass(item, 64, 80)}>{item}</p></li>
           ))}
         </ol>
       </section>
@@ -251,7 +258,7 @@ function SlideFour({ data }: MediaKitPreviewProps) {
           </div>
         )}
 
-        <div className="mk-s4-specialization">ТУРАГЕНТ · {present(data.specialization, '[СПЕЦИАЛИЗАЦИЯ]')}</div>
+        <div className={`mk-s4-specialization ${densityClass(data.specialization, 30, 44)}`}>ТУРАГЕНТ · {present(data.specialization, '[СПЕЦИАЛИЗАЦИЯ]')}</div>
 
         <div className="mk-contacts">
           {data.phone.trim() && (
@@ -272,7 +279,7 @@ function SlideFour({ data }: MediaKitPreviewProps) {
           )}
         </div>
 
-        <p className="mk-s4-final">« {present(data.finalPhrase, 'Буду рад(а) познакомиться и обсудить сотрудничество')} »</p>
+        <p className={`mk-s4-final ${densityClass(data.finalPhrase, 90, 110)}`}>« {present(data.finalPhrase, 'Буду рад(а) познакомиться и обсудить сотрудничество')} »</p>
       </div>
       <img className="mk-s4-photo" src={`${ASSET_ROOT}/image5.jpg`} alt="Жёлтый чемодан на берегу моря" />
     </SlideFrame>

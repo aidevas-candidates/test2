@@ -163,14 +163,10 @@ function ImageUpload({
       const image = new Image()
       image.onload = () => {
         if (purpose === 'portrait') {
-          const ratio = image.width / image.height
-          if (image.width < 800 || image.height < 1000) {
-            setError(`Портрет слишком маленький: ${image.width} × ${image.height} px. Нужен вертикальный кадр не менее 800 × 1000 px.`)
-            event.target.value = ''
-            return
-          }
-          if (Math.abs(ratio - 4 / 5) > 0.03) {
-            setError(`Портрет имеет неподходящие пропорции (${image.width} × ${image.height} px). Загрузите вертикальный кадр 4:5 — мы не обрезаем фотографию автоматически.`)
+          const cropWidth = Math.min(image.width, image.height * 4 / 5)
+          const cropHeight = Math.min(image.height, image.width * 5 / 4)
+          if (cropWidth < 800 || cropHeight < 1000) {
+            setError(`После обрезки портрет будет слишком маленьким (${Math.round(cropWidth)} × ${Math.round(cropHeight)} px). Загрузите фотографию большего размера.`)
             event.target.value = ''
             return
           }
@@ -202,7 +198,7 @@ function ImageUpload({
       <FieldLabel optional={optional}>{label}</FieldLabel>
       <p className="field__hint" id={`${id}-hint`}>
         {purpose === 'portrait'
-          ? 'Вертикальный портрет строго 4:5, не менее 800 × 1000 px. Кадр не обрезается.'
+          ? 'Фотография автоматически обрежется по центру до формата 4:5. После обрезки должно остаться не менее 800 × 1000 px.'
           : 'Горизонтальное фото, отзыв или сертификат строго 4:3, не менее 800 × 600 px. Кадр не обрезается и появится внутри кейса.'}
         {' '}JPEG, PNG или WebP, до {purpose === 'proof' ? 4 : 8} МБ.
       </p>

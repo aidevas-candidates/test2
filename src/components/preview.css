@@ -79,15 +79,16 @@
   top: 70px;
   left: 51px;
   width: 435px;
-  height: 41px;
-  padding: 11px 16px 0;
+  min-height: 41px;
+  padding: 10px 16px;
   overflow: hidden;
   color: #111;
   background: #f5c518;
   text-align: center;
-  white-space: nowrap;
   font: 700 16px/1 Arial Black, Arial, sans-serif;
 }
+.mk-s1-specialization.is-long { font-size: 14px; line-height: 1.08; }
+.mk-s1-specialization.is-very-long { font-size: 12px; line-height: 1.08; }
 .mk-s1-title {
   position: absolute;
   top: 126px;
@@ -102,12 +103,14 @@
   top: 225px;
   left: 51px;
   width: 760px;
-  max-height: 62px;
+  max-height: 70px;
   overflow: hidden;
   color: #ededed;
   font-size: 17px;
   line-height: 1.28;
 }
+.mk-s1-about.is-long { font-size: 15px; line-height: 1.2; }
+.mk-s1-about.is-very-long { font-size: 14px; line-height: 1.17; }
 .mk-s1-yellow {
   position: absolute;
   bottom: 0;
@@ -128,18 +131,22 @@
   text-overflow: ellipsis;
   font: 700 44px/1.08 Arial Black, Arial, sans-serif;
 }
+.mk-s1-name.is-long { font-size: 30px; }
+.mk-s1-name.is-very-long { font-size: 24px; }
 .mk-s1-positioning {
   position: absolute;
   top: 535px;
   left: 46px;
   width: 548px;
-  max-height: 52px;
+  max-height: 56px;
   overflow: hidden;
   font-size: 21px;
   font-style: italic;
   font-weight: 600;
   line-height: 1.18;
 }
+.mk-s1-positioning.is-long { font-size: 18px; line-height: 1.14; }
+.mk-s1-positioning.is-very-long { font-size: 16px; line-height: 1.08; }
 .mk-s1-directions-title {
   position: absolute;
   top: 604px;
@@ -159,9 +166,10 @@
   max-height: 61px;
   overflow: hidden;
   color: #2a2a2a;
-  font-size: 18px;
+  font-size: 15px;
   line-height: 1.25;
 }
+.mk-s1-directions li.is-long { font-size: 13px; }
 .mk-s1-directions li {
   min-width: 0;
   overflow: hidden;
@@ -229,7 +237,8 @@
   font-style: italic;
   text-decoration: underline;
 }
-.mk-s2-tourists .mk-list { display: grid; gap: 20px; font-size: 16px; text-decoration: underline; }
+.mk-s2-tourists .mk-list { display: grid; gap: 16px; font-size: 16px; text-decoration: underline; }
+.mk-s2-tourists li.is-long { font-size: 14px; line-height: 1.14; }
 .mk-s2-tourists li, .mk-s2-benefits li { position: relative; padding-left: 18px; }
 .mk-s2-tourists li::before {
   position: absolute;
@@ -238,7 +247,9 @@
   content: '▸';
   font-weight: 900;
 }
-.mk-s2-benefits .mk-list { display: grid; gap: 29px; margin-top: 22px; font-size: 15px; font-weight: 600; text-decoration: underline; }
+.mk-s2-benefits .mk-list { display: grid; gap: 22px; margin-top: 22px; font-size: 15px; font-weight: 600; text-decoration: underline; }
+.mk-s2-benefits li.is-long { font-size: 13px; line-height: 1.16; }
+.mk-s2-benefits li.is-very-long { font-size: 12px; line-height: 1.12; }
 .mk-s2-benefits li::before { position: absolute; left: 0; content: '✓'; font-weight: 700; }
 .mk-s2-requests ol { display: grid; gap: 15px; padding: 0; margin: 45px 0 0; list-style: none; }
 .mk-s2-requests li { display: grid; grid-template-columns: 42px 1fr; align-items: center; column-gap: 18px; min-height: 43px; }
@@ -258,6 +269,8 @@
   line-height: 1.2;
   text-decoration: underline;
 }
+.mk-s2-requests li p.is-long { font-size: 12px; line-height: 1.12; }
+.mk-s2-requests li p.is-very-long { font-size: 11px; line-height: 1.08; }
 
 /* Slide 3 */
 .mk-s3-header-bg { position: absolute; inset: 0 0 auto; width: 100%; height: 146px; object-fit: cover; }
@@ -341,6 +354,8 @@
 .mk-case-part h3 { position: relative; padding-left: 13px; font: 700 14px/1.1 Arial Black, Arial, sans-serif; }
 .mk-case-part h3::before { position: absolute; left: 0; color: #f5c518; content: '●'; font-size: 11px; }
 .mk-case-part p { margin-top: 10px; color: #6e6e6e; font-size: 14px; line-height: 1.22; }
+.mk-case-part p.is-long { font-size: 12px; line-height: 1.15; }
+.mk-case-part p.is-very-long { font-size: 11px; line-height: 1.1; }
 
 /* Slide 4 */
 .mk-s4-left { position: absolute; inset: 0 auto 0 0; width: 704px; color: #fff; background: #111; }
@@ -372,15 +387,19 @@
   top: 332px;
   left: 110px;
   width: 443px;
-  height: 51px;
-  padding: 16px 20px 0;
+  display: flex;
+  min-height: 51px;
+  padding: 10px 20px;
   overflow: hidden;
   color: #111;
   background: #f5c518;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  white-space: nowrap;
   font: 700 17px/1 Arial Black, Arial, sans-serif;
 }
+.mk-s4-specialization.is-long { font-size: 14px; line-height: 1.08; }
+.mk-s4-specialization.is-very-long { font-size: 12px; line-height: 1.08; }
 .mk-contacts {
   position: absolute;
   top: 427px;
@@ -400,7 +419,14 @@
 }
 .mk-contact-row > i { align-self: center; width: 17px; height: 17px; background: #f5c518; }
 .mk-contact-row > strong { color: #fff; font-size: 19px; }
-.mk-contact-row > a, .mk-social-links { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.mk-contact-row > a, .mk-social-links {
+  min-width: 0;
+  max-height: 44px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.mk-social-links { font-size: 16px; line-height: 1.08; }
 .mk-social-links b { color: #aaa; font-weight: 400; }
 .mk-s4-final {
   position: absolute;
@@ -416,6 +442,8 @@
   text-align: center;
 }
 .mk-s4-final::first-letter { color: #f5c518; font-weight: 700; }
+.mk-s4-final.is-long { font-size: 14px; line-height: 1.15; }
+.mk-s4-final.is-very-long { font-size: 13px; line-height: 1.12; }
 
 @media (max-width: 640px) {
   .media-kit-preview { gap: 16px; }
