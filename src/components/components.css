@@ -293,7 +293,16 @@
 .upload-box { display: grid; grid-template-columns: 145px 1fr; gap: 1.25rem; align-items: center; padding: 1.15rem; border: 1px dashed #57554f; border-radius: var(--mk-radius); background: #111; }
 .upload-box img,
 .upload-box__placeholder { width: 145px; height: 112px; object-fit: cover; background: #292824; }
-.upload-box img.upload-box__portrait { aspect-ratio: 4/5; height: 180px; }
+.upload-box img.upload-box__portrait {
+  justify-self: center;
+  width: auto;
+  height: auto;
+  max-width: 145px;
+  max-height: 180px;
+  object-fit: contain;
+  background: transparent;
+  border-radius: 8px;
+}
 .upload-box__placeholder { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: .5rem; border-radius: 8px; color: var(--mk-muted); text-align: center; }
 .upload-box__placeholder span { color: var(--mk-yellow); font-size: 2rem; }
 .upload-box__actions { display: flex; align-items: center; flex-wrap: wrap; gap: .8rem; }
@@ -308,6 +317,7 @@
 .case-card .upload-box { grid-template-columns: 100px 1fr; }
 .case-card .upload-box img,
 .case-card .upload-box__placeholder { width: 100px; height: 76px; }
+.case-card .upload-box img { width: auto; height: auto; max-width: 100px; max-height: 100px; object-fit: contain; background: transparent; }
 .form-layout--contacts { grid-template-columns: minmax(0, 1.2fr) minmax(290px, .8fr); }
 .contact-lines { gap: 1rem; }
 .contact-line { display: grid; grid-template-columns: 2.5rem minmax(0, 1fr); gap: 1rem; align-items: start; padding: 1.1rem; border: 1px solid var(--mk-border); border-radius: var(--mk-radius); background: #151515; }
@@ -379,7 +389,8 @@
   .upload-box__placeholder,
   .case-card .upload-box img,
   .case-card .upload-box__placeholder { width: 100%; height: 160px; }
-  .upload-box img.upload-box__portrait { width: 130px; height: 163px; }
+  .case-card .upload-box img { justify-self: center; width: auto; height: auto; max-width: 100%; max-height: 160px; }
+  .upload-box img.upload-box__portrait { width: auto; height: auto; max-width: 130px; max-height: 163px; }
   .intro__visual { width: min(92vw, 390px); }
   .intro__visual-card { gap: .65rem; padding: 1rem; box-shadow: 9px 9px 0 var(--mk-amber); }
   .intro__visual-card strong { font-size: 2.5rem; }

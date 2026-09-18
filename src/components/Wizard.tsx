@@ -141,10 +141,12 @@ function ImageUpload({
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [error, setError] = useState('')
+  const [notice, setNotice] = useState('')
 
   const readImage = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
     setError('')
+    setNotice('')
     if (!file) return
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
       setError('Выберите изображение в формате JPEG, PNG или WebP.')
@@ -162,27 +164,10 @@ function ImageUpload({
       const result = String(reader.result)
       const image = new Image()
       image.onload = () => {
-        if (purpose === 'portrait') {
-          const cropWidth = Math.min(image.width, image.height * 4 / 5)
-          const cropHeight = Math.min(image.height, image.width * 5 / 4)
-          if (cropWidth < 800 || cropHeight < 1000) {
-            setError(`После обрезки портрет будет слишком маленьким (${Math.round(cropWidth)} × ${Math.round(cropHeight)} px). Загрузите фотографию большего размера.`)
-            event.target.value = ''
-            return
-          }
-        }
-        if (purpose === 'proof') {
-          const ratio = image.width / image.height
-          if (image.width < 800 || image.height < 600) {
-            setError(`Изображение слишком маленькое: ${image.width} × ${image.height} px. Нужен горизонтальный кадр не менее 800 × 600 px.`)
-            event.target.value = ''
-            return
-          }
-          if (Math.abs(ratio - 4 / 3) > 0.03) {
-            setError(`Неподходящие пропорции (${image.width} × ${image.height} px). Загрузите горизонтальный кадр 4:3 — мы не обрезаем изображение автоматически.`)
-            event.target.value = ''
-            return
-          }
+        const minimumWidth = purpose === 'portrait' ? 800 : 800
+        const minimumHeight = purpose === 'portrait' ? 1000 : 600
+        if (image.width < minimumWidth || image.height < minimumHeight) {
+          setNotice(`Фотография принята и подогнана автоматически. Исходный размер ${image.width} × ${image.height} px может немного снизить чёткость в PDF.`)
         }
         onChange(result)
       }
@@ -198,8 +183,8 @@ function ImageUpload({
       <FieldLabel optional={optional}>{label}</FieldLabel>
       <p className="field__hint" id={`${id}-hint`}>
         {purpose === 'portrait'
-          ? 'Фотография автоматически обрежется по центру до формата 4:5. После обрезки должно остаться не менее 800 × 1000 px.'
-          : 'Горизонтальное фото, отзыв или сертификат строго 4:3, не менее 800 × 600 px. Кадр не обрезается и появится внутри кейса.'}
+          ? 'Подойдёт фотография любых пропорций. В медиаките она уменьшится пропорционально и появится целиком, а рамка подстроится по ширине или высоте.'
+          : 'Подойдёт фотография, отзыв или сертификат любых пропорций. Изображение появится целиком без обрезки и растягивания.'}
         {' '}JPEG, PNG или WebP, до {purpose === 'proof' ? 4 : 8} МБ.
       </p>
       <div className="upload-box">
@@ -225,6 +210,7 @@ function ImageUpload({
         </div>
       </div>
       {error && <p className="field__message field__message--error" id={`${id}-error`} role="alert">{error}</p>}
+      {notice && <p className="field__message" role="status">{notice}</p>}
     </div>
   )
 }
