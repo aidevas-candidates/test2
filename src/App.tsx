@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Intro } from './components/Intro'
 import { Wizard } from './components/Wizard'
 import { MediaKitPreview } from './components/MediaKitPreview'
@@ -16,10 +16,20 @@ export function App() {
   const [data, setData] = useState<MediaKitData>(initialMediaKitData)
   const [errors, setErrors] = useState<string[]>([])
   const [isExporting, setIsExporting] = useState(false)
+  const [pdfDownload, setPdfDownload] = useState<{ url: string; fileName: string } | null>(null)
+  const [pdfStatus, setPdfStatus] = useState<'idle' | 'preparing' | 'ready' | 'error'>('idle')
   const [sampleMode, setSampleMode] = useState(false)
   const previewRef = useRef<HTMLDivElement>(null)
+  const exportInProgressRef = useRef(false)
+  const pdfGenerationRef = useRef(0)
+  const pdfQueueRef = useRef<Promise<void>>(Promise.resolve())
+
+  useEffect(() => () => {
+    if (pdfDownload) URL.revokeObjectURL(pdfDownload.url)
+  }, [pdfDownload])
 
   const fillWithSample = () => {
+    setPdfDownload(null)
     setData((current) => ({
       ...sampleData,
       portrait: current.portrait ?? sampleData.portrait,
@@ -33,6 +43,7 @@ export function App() {
   }
 
   const clearForm = () => {
+    setPdfDownload(null)
     setData(initialMediaKitData)
     setSampleMode(false)
     setErrors([])
@@ -50,24 +61,57 @@ export function App() {
     window.scrollTo({ top: 0 })
   }
 
-  const downloadPdf = async () => {
-    if (!previewRef.current || isExporting) return
+  const preparePdf = useCallback(async () => {
+    if (!previewRef.current || exportInProgressRef.current) return
+    const generation = ++pdfGenerationRef.current
+    exportInProgressRef.current = true
     setIsExporting(true)
+    setPdfStatus('preparing')
+    setPdfDownload(null)
+    setErrors([])
     try {
-      await exportMediaKitPdf(previewRef.current, data)
+      const container = previewRef.current
+      const job = pdfQueueRef.current.then(() => {
+        if (generation !== pdfGenerationRef.current) throw new Error('PDF generation cancelled')
+        return exportMediaKitPdf(container, data)
+      })
+      pdfQueueRef.current = job.then(() => undefined, () => undefined)
+      const generated = await job
+      const url = URL.createObjectURL(generated.blob)
+      if (generation !== pdfGenerationRef.current) {
+        URL.revokeObjectURL(url)
+        return
+      }
+      setPdfDownload({ url, fileName: generated.fileName })
+      setPdfStatus('ready')
     } catch (error) {
+      if (generation !== pdfGenerationRef.current) return
       console.error(error)
       setErrors(['Не удалось собрать PDF. Попробуйте ещё раз или откройте сайт в актуальной версии браузера.'])
+      setPdfStatus('error')
     } finally {
-      setIsExporting(false)
+      if (generation === pdfGenerationRef.current) {
+        exportInProgressRef.current = false
+        setIsExporting(false)
+      }
     }
-  }
+  }, [data])
+
+  useEffect(() => {
+    if (screen !== 'preview') return
+    const frame = requestAnimationFrame(() => void preparePdf())
+    return () => {
+      cancelAnimationFrame(frame)
+      pdfGenerationRef.current += 1
+      exportInProgressRef.current = false
+    }
+  }, [screen, preparePdf])
 
   return (
     <main>
       {errors.length > 0 && (
         <section className="error-summary" role="alert" aria-live="polite">
-          <strong>Перед предпросмотром нужно дополнить анкету</strong>
+          <strong>{screen === 'preview' ? 'Не удалось скачать PDF' : 'Перед предпросмотром нужно дополнить анкету'}</strong>
           <ul>{errors.map((error) => <li key={error}>{error}</li>)}</ul>
         </section>
       )}
@@ -77,7 +121,10 @@ export function App() {
       {screen === 'form' && (
         <Wizard
           data={data}
-          onChange={setData}
+          onChange={(nextData) => {
+            setPdfDownload(null)
+            setData(nextData)
+          }}
           onPreview={openPreview}
           sampleMode={sampleMode}
           onFillSample={fillWithSample}
@@ -94,10 +141,20 @@ export function App() {
               <p>Посмотрите на результат глазами будущего партнёра.</p>
             </div>
             <div className="toolbar-actions">
-              <button className="button button-secondary" onClick={() => setScreen('form')}>Изменить ответы</button>
-              <button className="button button-primary" onClick={downloadPdf} disabled={isExporting}>
-                {isExporting ? 'Собираем PDF…' : 'Скачать PDF'}
-              </button>
+              <button className="button button-secondary" onClick={() => {
+                setPdfDownload(null)
+                setPdfStatus('idle')
+                setScreen('form')
+              }}>Изменить ответы</button>
+              {pdfDownload && pdfStatus === 'ready' ? (
+                <a className="button button-primary" href={pdfDownload.url} download={pdfDownload.fileName}>
+                  Скачать PDF
+                </a>
+              ) : (
+                <button className="button button-primary" onClick={() => void preparePdf()} disabled={isExporting}>
+                  {pdfStatus === 'error' ? 'Повторить подготовку' : 'Готовим PDF…'}
+                </button>
+              )}
             </div>
           </header>
 

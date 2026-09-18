@@ -124,6 +124,21 @@ function ListEditor({
 
 type ImagePurpose = 'portrait' | 'proof'
 
+function resizeImageForPdf(image: HTMLImageElement, mimeType: string) {
+  const maxSide = 1600
+  const scale = Math.min(1, maxSide / Math.max(image.width, image.height))
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d')
+  if (!context) throw new Error('Canvas is unavailable')
+
+  canvas.width = Math.max(1, Math.round(image.width * scale))
+  canvas.height = Math.max(1, Math.round(image.height * scale))
+  context.drawImage(image, 0, 0, canvas.width, canvas.height)
+  return mimeType !== 'image/jpeg'
+    ? canvas.toDataURL('image/png')
+    : canvas.toDataURL('image/jpeg', 0.9)
+}
+
 function ImageUpload({
   id,
   label,
@@ -159,23 +174,29 @@ function ImageUpload({
       event.target.value = ''
       return
     }
-    const reader = new FileReader()
-    reader.onload = () => {
-      const result = String(reader.result)
-      const image = new Image()
-      image.onload = () => {
+    const objectUrl = URL.createObjectURL(file)
+    const image = new Image()
+    image.onload = () => {
+      try {
         const minimumWidth = purpose === 'portrait' ? 800 : 800
         const minimumHeight = purpose === 'portrait' ? 1000 : 600
         if (image.width < minimumWidth || image.height < minimumHeight) {
           setNotice(`Фотография принята и подогнана автоматически. Исходный размер ${image.width} × ${image.height} px может немного снизить чёткость в PDF.`)
         }
-        onChange(result)
+        onChange(resizeImageForPdf(image, file.type))
+      } catch {
+        setError('Не удалось подготовить изображение. Попробуйте другой файл.')
+      } finally {
+        URL.revokeObjectURL(objectUrl)
+        if (inputRef.current) inputRef.current.value = ''
       }
-      image.onerror = () => setError('Не удалось прочитать изображение. Попробуйте другой файл.')
-      image.src = result
     }
-    reader.onerror = () => setError('Не удалось загрузить файл. Попробуйте ещё раз.')
-    reader.readAsDataURL(file)
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      setError('Не удалось прочитать изображение. Попробуйте другой файл.')
+      if (inputRef.current) inputRef.current.value = ''
+    }
+    image.src = objectUrl
   }
 
   return (

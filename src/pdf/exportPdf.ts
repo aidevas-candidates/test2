@@ -13,21 +13,50 @@ type LinkZone = {
   height: number
 }
 
-function waitForImage(image: HTMLImageElement) {
-  if (image.complete) return image.decode?.().catch(() => undefined) ?? Promise.resolve()
-  return new Promise<void>((resolve) => {
-    image.addEventListener('load', () => resolve(), { once: true })
-    image.addEventListener('error', () => resolve(), { once: true })
+export type GeneratedPdf = {
+  blob: Blob
+  fileName: string
+}
+
+async function waitForImage(image: HTMLImageElement, timeoutMs = 8000) {
+  if (image.complete && image.naturalWidth > 0) {
+    try {
+      await image.decode?.()
+    } catch {
+      if (!image.naturalWidth) throw new Error('Изображение не удалось декодировать')
+    }
+    return
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error('Истекло время ожидания изображения')), timeoutMs)
+    let settled = false
+    const finish = (error?: Error) => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timeout)
+      if (error) reject(error)
+      else resolve()
+    }
+    image.addEventListener('load', () => finish(), { once: true })
+    image.addEventListener('error', () => finish(new Error('Изображение не загрузилось')), { once: true })
+    if (image.complete) {
+      finish(image.naturalWidth > 0 ? undefined : new Error('Изображение не загрузилось'))
+    }
   })
 }
 
 async function waitForQr(container: HTMLElement, data: MediaKitData) {
   if (!data.qrTarget || container.querySelector('.mk-qr-block img')) return
-  await new Promise<void>((resolve) => {
+  await new Promise<void>((resolve, reject) => {
     const startedAt = performance.now()
     const check = () => {
-      if (container.querySelector('.mk-qr-block img') || performance.now() - startedAt > 1600) {
+      if (container.querySelector('.mk-qr-block img')) {
         resolve()
+        return
+      }
+      if (performance.now() - startedAt > 5000) {
+        reject(new Error('QR-код не успел сформироваться'))
         return
       }
       requestAnimationFrame(check)
@@ -41,6 +70,89 @@ async function prepareForCapture(container: HTMLElement, data: MediaKitData) {
   await document.fonts?.ready
   const images = Array.from(container.querySelectorAll<HTMLImageElement>('.media-slide img'))
   await Promise.all(images.map(waitForImage))
+}
+
+function nextPaint() {
+  return new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+}
+
+async function prepareSlideImages(slide: HTMLElement, pixelRatio: number) {
+  const images = Array.from(slide.querySelectorAll<HTMLImageElement>('img:not(.mk-qr-block img)'))
+  const originals: { image: HTMLImageElement; src: string; srcset: string | null }[] = []
+  const restoreOriginals = async () => {
+    for (const original of originals) {
+      original.image.src = original.src
+      if (original.srcset) original.image.setAttribute('srcset', original.srcset)
+      else original.image.removeAttribute('srcset')
+    }
+    await Promise.all(originals.map(({ image }) => waitForImage(image)))
+    await nextPaint()
+  }
+
+  for (const image of images) {
+    await waitForImage(image)
+    const naturalWidth = image.naturalWidth
+    const naturalHeight = image.naturalHeight
+    if (!naturalWidth || !naturalHeight || naturalWidth * naturalHeight < 2_000_000) continue
+
+    const requiredWidth = Math.max(1, image.offsetWidth * pixelRatio)
+    const requiredHeight = Math.max(1, image.offsetHeight * pixelRatio)
+    const resolutionScale = Math.min(
+      1,
+      Math.max(requiredWidth / naturalWidth, requiredHeight / naturalHeight),
+      2048 / Math.max(naturalWidth, naturalHeight),
+    )
+    if (resolutionScale >= 0.92) continue
+
+    let original: { image: HTMLImageElement; src: string; srcset: string | null } | undefined
+    try {
+      const canvas = document.createElement('canvas')
+      const context = canvas.getContext('2d')
+      if (!context) continue
+      canvas.width = Math.max(1, Math.round(naturalWidth * resolutionScale))
+      canvas.height = Math.max(1, Math.round(naturalHeight * resolutionScale))
+      context.drawImage(image, 0, 0, canvas.width, canvas.height)
+
+      original = { image, src: image.src, srcset: image.getAttribute('srcset') }
+      image.removeAttribute('srcset')
+      const keepTransparency = image.src.startsWith('data:image/png') || image.src.startsWith('data:image/webp')
+      image.src = keepTransparency ? canvas.toDataURL('image/png') : canvas.toDataURL('image/jpeg', 0.9)
+      await waitForImage(image)
+      originals.push(original)
+    } catch (error) {
+      if (original) {
+        original.image.src = original.src
+        if (original.srcset) original.image.setAttribute('srcset', original.srcset)
+        await waitForImage(original.image)
+      }
+      await restoreOriginals()
+      throw new Error('Не удалось подготовить изображение для PDF', { cause: error })
+    }
+  }
+
+  await nextPaint()
+  return restoreOriginals
+}
+
+async function captureSlide(slide: HTMLElement, pixelRatio: number) {
+  const restoreImages = await prepareSlideImages(slide, pixelRatio)
+  try {
+    return await toJpeg(slide, {
+      width: SLIDE_WIDTH,
+      height: SLIDE_HEIGHT,
+      pixelRatio,
+      quality: 0.92,
+      cacheBust: false,
+      skipAutoScale: true,
+      backgroundColor: '#ffffff',
+      style: {
+        transform: 'none',
+        transformOrigin: '0 0',
+      },
+    })
+  } finally {
+    await restoreImages()
+  }
 }
 
 function collectLinkZones(slide: HTMLElement): LinkZone[] {
@@ -69,7 +181,7 @@ function safeFileNamePart(fullName: string) {
     .replace(/[. ]+$/g, '') || 'Турагент'
 }
 
-export async function exportMediaKitPdf(container: HTMLElement, data: MediaKitData): Promise<void> {
+export async function exportMediaKitPdf(container: HTMLElement, data: MediaKitData): Promise<GeneratedPdf> {
   const slides = Array.from(container.querySelectorAll<HTMLElement>('.media-slide'))
   if (slides.length !== 4) {
     throw new Error(`Ожидалось 4 страницы медиакита, найдено: ${slides.length}`)
@@ -86,22 +198,19 @@ export async function exportMediaKitPdf(container: HTMLElement, data: MediaKitDa
   })
   const pageWidth = pdf.internal.pageSize.getWidth()
   const pageHeight = pdf.internal.pageSize.getHeight()
+  const isMobileDevice = /Android|iP(?:hone|ad|od)/.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && window.innerWidth <= 1024)
+  const pixelRatio = isMobileDevice ? 1.25 : 1.5
 
   for (let index = 0; index < slides.length; index += 1) {
     const slide = slides[index]
     const links = collectLinkZones(slide)
-    const image = await toJpeg(slide, {
-      width: SLIDE_WIDTH,
-      height: SLIDE_HEIGHT,
-      pixelRatio: 2,
-      quality: 0.94,
-      cacheBust: true,
-      backgroundColor: '#ffffff',
-      style: {
-        transform: 'none',
-        transformOrigin: '0 0',
-      },
-    })
+    let image: string
+    try {
+      image = await captureSlide(slide, pixelRatio)
+    } catch {
+      image = await captureSlide(slide, 1)
+    }
 
     if (index > 0) pdf.addPage([SLIDE_WIDTH, SLIDE_HEIGHT], 'landscape')
     pdf.addImage(image, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST')
@@ -125,5 +234,6 @@ export async function exportMediaKitPdf(container: HTMLElement, data: MediaKitDa
     subject: 'Медиакит турагента',
     creator: 'Конструктор медиакита',
   })
-  pdf.save(`Media Kit — ${personName}.pdf`)
+  const fileName = `Media Kit — ${personName}.pdf`
+  return { blob: pdf.output('blob'), fileName }
 }
