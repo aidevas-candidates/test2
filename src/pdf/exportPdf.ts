@@ -6,6 +6,13 @@ import type { MediaKitData } from '../model'
 const SLIDE_WIDTH = 1280
 const SLIDE_HEIGHT = 720
 
+const TEMPLATE_PHOTO_REGIONS = [
+  { x: 650, y: 575, width: 180, height: 100 },
+  { x: 40, y: 230, width: 320, height: 390 },
+  { x: 560, y: 12, width: 400, height: 65 },
+  { x: 760, y: 200, width: 450, height: 420 },
+]
+
 type LinkZone = {
   url: string
   x: number
@@ -197,7 +204,58 @@ async function captureSlide(slide: HTMLElement, pixelRatio: number) {
   }
 }
 
-async function captureSlideFallback(slide: HTMLElement) {
+function imageRegion(slide: HTMLElement, image: HTMLImageElement) {
+  const slideRect = slide.getBoundingClientRect()
+  const imageRect = image.getBoundingClientRect()
+  const scaleX = SLIDE_WIDTH / slideRect.width
+  const scaleY = SLIDE_HEIGHT / slideRect.height
+  return {
+    x: (imageRect.left - slideRect.left) * scaleX,
+    y: (imageRect.top - slideRect.top) * scaleY,
+    width: imageRect.width * scaleX,
+    height: imageRect.height * scaleY,
+  }
+}
+
+function regionIsBlank(context: CanvasRenderingContext2D, region: { x: number; y: number; width: number; height: number }) {
+  const x = Math.max(0, Math.floor(region.x + region.width * 0.1))
+  const y = Math.max(0, Math.floor(region.y + region.height * 0.1))
+  const width = Math.min(SLIDE_WIDTH - x, Math.max(1, Math.floor(region.width * 0.8)))
+  const height = Math.min(SLIDE_HEIGHT - y, Math.max(1, Math.floor(region.height * 0.8)))
+  if (width <= 0 || height <= 0) return false
+  const pixels = context.getImageData(x, y, width, height).data
+  let sampled = 0
+  let white = 0
+  let uniform = 0
+  const first = [pixels[0], pixels[1], pixels[2]]
+  for (let row = 0; row < height; row += 16) {
+    for (let column = 0; column < width; column += 16) {
+      const offset = (row * width + column) * 4
+      const red = pixels[offset]
+      const green = pixels[offset + 1]
+      const blue = pixels[offset + 2]
+      sampled += 1
+      if (red > 247 && green > 247 && blue > 247) white += 1
+      if (Math.abs(red - first[0]) < 5 && Math.abs(green - first[1]) < 5 && Math.abs(blue - first[2]) < 5) uniform += 1
+    }
+  }
+  return sampled > 4 && (white / sampled > 0.97 || uniform / sampled > 0.98)
+}
+
+function verifyCapturedPhotos(canvas: HTMLCanvasElement, slide: HTMLElement, slideIndex: number) {
+  const context = canvas.getContext('2d', { willReadFrequently: true })
+  if (!context) throw new Error('Не удалось проверить фотографии в PDF')
+  if (regionIsBlank(context, TEMPLATE_PHOTO_REGIONS[slideIndex])) {
+    throw new Error('Изображение шаблона пропало при экспорте')
+  }
+  for (const image of slide.querySelectorAll<HTMLImageElement>('.mk-s1-portrait, .mk-case-proof')) {
+    if (regionIsBlank(context, imageRegion(slide, image))) {
+      throw new Error('Загруженная фотография пропала при экспорте')
+    }
+  }
+}
+
+async function captureSlideFallback(slide: HTMLElement, slideIndex?: number) {
   const { default: html2canvas } = await import('html2canvas')
   const canvas = await html2canvas(slide, {
     backgroundColor: '#ffffff',
@@ -224,6 +282,7 @@ async function captureSlideFallback(slide: HTMLElement) {
   if (canvas.width !== SLIDE_WIDTH || canvas.height !== SLIDE_HEIGHT) {
     throw new Error('Резервный рендерер создал страницу неверного размера')
   }
+  if (slideIndex !== undefined) verifyCapturedPhotos(canvas, slide, slideIndex)
   return canvas.toDataURL('image/jpeg', 0.9)
 }
 
@@ -273,26 +332,41 @@ export async function exportMediaKitPdf(container: HTMLElement, data: MediaKitDa
   const pageHeight = pdf.internal.pageSize.getHeight()
   const isMobileDevice = /Android|iP(?:hone|ad|od)/.test(navigator.userAgent)
     || (navigator.maxTouchPoints > 1 && window.innerWidth <= 1024)
+  const isIosDevice = /iP(?:hone|ad|od)/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   const pixelRatio = isMobileDevice ? 1 : 1.5
 
   for (let index = 0; index < slides.length; index += 1) {
     const slide = slides[index]
     const links = collectLinkZones(slide)
     let image: string
-    try {
-      image = await captureSlide(slide, pixelRatio)
-    } catch (primaryError) {
+    if (isIosDevice) {
       try {
-        image = pixelRatio > 1 ? await captureSlide(slide, 1) : await captureSlideFallback(slide)
-      } catch (secondError) {
-        if (pixelRatio > 1) {
-          try {
-            image = await captureSlideFallback(slide)
-          } catch (fallbackError) {
-            throw new Error(`Не удалось подготовить слайд ${index + 1}`, { cause: [primaryError, secondError, fallbackError] })
+        image = await captureSlideFallback(slide, index)
+      } catch (firstError) {
+        await new Promise<void>((resolve) => window.setTimeout(resolve, 200))
+        try {
+          image = await captureSlideFallback(slide, index)
+        } catch (secondError) {
+          throw new Error(`Не удалось подготовить слайд ${index + 1}`, { cause: [firstError, secondError] })
+        }
+      }
+    } else {
+      try {
+        image = await captureSlide(slide, pixelRatio)
+      } catch (primaryError) {
+        try {
+          image = pixelRatio > 1 ? await captureSlide(slide, 1) : await captureSlideFallback(slide)
+        } catch (secondError) {
+          if (pixelRatio > 1) {
+            try {
+              image = await captureSlideFallback(slide)
+            } catch (fallbackError) {
+              throw new Error(`Не удалось подготовить слайд ${index + 1}`, { cause: [primaryError, secondError, fallbackError] })
+            }
+          } else {
+            throw new Error(`Не удалось подготовить слайд ${index + 1}`, { cause: [primaryError, secondError] })
           }
-        } else {
-          throw new Error(`Не удалось подготовить слайд ${index + 1}`, { cause: [primaryError, secondError] })
         }
       }
     }
@@ -302,7 +376,7 @@ export async function exportMediaKitPdf(container: HTMLElement, data: MediaKitDa
       pdf.addImage(image, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST')
     } catch {
       try {
-        image = await captureSlideFallback(slide)
+        image = await captureSlideFallback(slide, isIosDevice ? index : undefined)
         pdf.addImage(image, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST')
       } catch (error) {
         throw new Error(`Не удалось подготовить слайд ${index + 1}`, { cause: error })
