@@ -170,7 +170,9 @@
 .intro__section-copy { max-width: 480px; line-height: 1.6; }
 .scenario-list { margin: 0; padding: 0; list-style: none; border-top: 2px solid #111; }
 .scenario-list li { display: flex; gap: 1.2rem; padding: 1.15rem 0; border-bottom: 1px solid rgba(0,0,0,.35); font-weight: 800; }
-.scenario-list span { min-width: 2rem; font-variant-numeric: tabular-nums; }
+.scenario-list li > span:first-child { min-width: 2rem; font-variant-numeric: tabular-nums; }
+.scenario-list__text { min-width: 0; }
+.scenario-list__detail { font-weight: 400; }
 .intro__cta { display: flex; align-items: center; justify-content: space-between; gap: 2rem; }
 .intro__cta h2 { margin-bottom: 1rem; }
 .intro__cta p:last-child { color: var(--mk-muted); }

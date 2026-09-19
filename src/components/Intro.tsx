@@ -23,11 +23,12 @@ const questions = [
 ]
 
 const scenarios = [
-  'Отправить туроператору перед знакомством',
-  'Приложить к предложению о сотрудничестве',
-  'Познакомиться с отелем или авиакомпанией',
-  'Представиться в профессиональном сообществе',
-  'Быстро рассказать о себе новому партнёру',
+  { title: 'Отправить туристу перед началом работы', detail: 'чтобы сразу показать свой подход и выглядеть в разы убедительнее конкурентов.' },
+  { title: 'Отправить туроператору перед знакомством' },
+  { title: 'Приложить к предложению о сотрудничестве' },
+  { title: 'Познакомиться с отелем или авиакомпанией' },
+  { title: 'Представиться в профессиональном сообществе' },
+  { title: 'Быстро рассказать о себе новому партнёру' },
 ]
 
 export function Intro({ onStart }: IntroProps) {
@@ -81,9 +82,12 @@ export function Intro({ onStart }: IntroProps) {
         </div>
         <ol className="scenario-list">
           {scenarios.map((scenario, index) => (
-            <li key={scenario}>
+            <li key={scenario.title}>
               <span aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
-              {scenario}
+              <span className="scenario-list__text">
+                <strong>{scenario.title}</strong>
+                {scenario.detail && <> — <span className="scenario-list__detail">{scenario.detail}</span></>}
+              </span>
             </li>
           ))}
         </ol>
