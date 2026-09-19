@@ -6,7 +6,7 @@ import './components.css'
 
 export type WizardProps = {
   data: MediaKitData
-  onChange: (data: MediaKitData) => void
+  onChange: React.Dispatch<React.SetStateAction<MediaKitData>>
   onPreview: () => void
   sampleMode: boolean
   onFillSample: () => void
@@ -266,21 +266,27 @@ export function Wizard({ data, onChange, onPreview, sampleMode, onFillSample, on
 
   const setField = <K extends keyof MediaKitData>(key: K, value: MediaKitData[K]) => {
     setSampleError('')
-    onChange({ ...data, [key]: value })
+    onChange((current) => ({ ...current, [key]: value }))
   }
 
   const setList = (key: StringListKey, value: string[]) => setField(key, value)
 
   const setCaseField = (index: 0 | 1, key: CaseKey, value: string) => {
-    const cases: [CaseStudy, CaseStudy] = [{ ...data.cases[0] }, { ...data.cases[1] }]
-    cases[index][key] = value
-    setField('cases', cases)
+    onChange((current) => {
+      const cases: [CaseStudy, CaseStudy] = [{ ...current.cases[0] }, { ...current.cases[1] }]
+      cases[index][key] = value
+      return { ...current, cases }
+    })
+    setSampleError('')
   }
 
   const setCaseImage = (index: 0 | 1, value?: string) => {
-    const cases: [CaseStudy, CaseStudy] = [{ ...data.cases[0] }, { ...data.cases[1] }]
-    cases[index].proofImage = value
-    setField('cases', cases)
+    onChange((current) => {
+      const cases: [CaseStudy, CaseStudy] = [{ ...current.cases[0] }, { ...current.cases[1] }]
+      cases[index].proofImage = value
+      return { ...current, cases }
+    })
+    setSampleError('')
   }
 
   const qrOptions = useMemo(() => [

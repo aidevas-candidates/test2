@@ -188,6 +188,8 @@ export const validateForPreview = (data: MediaKitData): ValidationError[] => {
     !isHttpUrl(availableQrTargets[data.qrTarget].trim())
   ) {
     errors.qrTarget = 'Выбранная ссылка должна быть корректной'
+  } else if (data.qrTarget && availableQrTargets[data.qrTarget].trim().length > 300) {
+    errors.qrTarget = 'Ссылка для QR слишком длинная. Используйте короткую прямую ссылку без лишних параметров.'
   }
 
   return Object.entries(errors).map(([field, message]) => ({ field, message }))

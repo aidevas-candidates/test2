@@ -142,7 +142,7 @@ function SlideOne({ data }: MediaKitPreviewProps) {
       <p className={`mk-s1-about ${densityClass(data.about, 220, 280)}`}>{present(data.about, '[2–4 предложения о себе, опыте и подходе к работе]')}</p>
 
       <div className="mk-s1-yellow" />
-      <h3 className={`mk-s1-name ${densityClass(data.fullName, 30, 40)}`}>{present(data.fullName, 'ИМЯ ФАМИЛИЯ')}</h3>
+      <h3 className={`mk-s1-name ${densityClass(data.fullName, 16, 27)}`}>{present(data.fullName, 'ИМЯ ФАМИЛИЯ')}</h3>
       <p className={`mk-s1-positioning ${densityClass(data.positioning, 95, 120)}`}>« {present(data.positioning, 'Я помогаю подобрать отдых с учётом ваших пожеланий')} »</p>
       <h4 className="mk-s1-directions-title">МОИ НАПРАВЛЕНИЯ</h4>
       <List items={destinations.length ? destinations : ['Направление 1', 'Направление 2']} className="mk-s1-directions" />
@@ -231,6 +231,17 @@ function SlideFour({ data }: MediaKitPreviewProps) {
       errorCorrectionLevel: 'M',
       color: { dark: '#111111', light: '#ffffff' },
     }).then((url) => { if (active) setQrDataUrl(url) })
+      .catch(async () => {
+        try {
+          const svg = await QRCode.toString(targetUrl, {
+            type: 'svg', width: 220, margin: 1, errorCorrectionLevel: 'M',
+            color: { dark: '#111111', light: '#ffffff' },
+          })
+          if (active) setQrDataUrl(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`)
+        } catch {
+          if (active) setQrDataUrl('')
+        }
+      })
     return () => { active = false }
   }, [targetUrl])
 

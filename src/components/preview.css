@@ -132,7 +132,7 @@
   font: 700 44px/1.08 Arial Black, Arial, sans-serif;
 }
 .mk-s1-name.is-long { font-size: 30px; }
-.mk-s1-name.is-very-long { font-size: 24px; }
+.mk-s1-name.is-very-long { font-size: 22px; }
 .mk-s1-positioning {
   position: absolute;
   top: 535px;
@@ -182,8 +182,9 @@
   top: 144px;
   right: 69px;
   z-index: 6;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 356px;
   height: 430px;
   overflow: hidden;

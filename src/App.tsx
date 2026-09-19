@@ -25,7 +25,7 @@ export function App() {
   const pdfQueueRef = useRef<Promise<void>>(Promise.resolve())
 
   useEffect(() => () => {
-    if (pdfDownload) URL.revokeObjectURL(pdfDownload.url)
+    if (pdfDownload?.url.startsWith('blob:')) URL.revokeObjectURL(pdfDownload.url)
   }, [pdfDownload])
 
   const fillWithSample = () => {
@@ -77,9 +77,22 @@ export function App() {
       })
       pdfQueueRef.current = job.then(() => undefined, () => undefined)
       const generated = await job
-      const url = URL.createObjectURL(generated.blob)
+      let url = generated.dataUri ?? ''
+      if (!url && generated.blob) {
+        try {
+          url = URL.createObjectURL(generated.blob)
+        } catch {
+          url = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader()
+            reader.onload = () => resolve(String(reader.result))
+            reader.onerror = () => reject(new Error('PDF_BLOB_URL'))
+            reader.readAsDataURL(generated.blob!)
+          })
+        }
+      }
+      if (!url) throw new Error('PDF_BLOB_URL')
       if (generation !== pdfGenerationRef.current) {
-        URL.revokeObjectURL(url)
+        if (url.startsWith('blob:')) URL.revokeObjectURL(url)
         return
       }
       setPdfDownload({ url, fileName: generated.fileName })
@@ -87,10 +100,24 @@ export function App() {
     } catch (error) {
       if (generation !== pdfGenerationRef.current) return
       console.error(error)
-      const slideNumber = error instanceof Error ? error.message.match(/слайд (\d+)/)?.[1] : undefined
-      setErrors([slideNumber
-        ? `Не удалось подготовить слайд ${slideNumber}. Попробуйте повторить подготовку.`
-        : 'Не удалось собрать PDF. Попробуйте повторить подготовку.'])
+      const reason = error instanceof Error ? error.message : ''
+      const slideNumber = reason.match(/слайд (\d+)/)?.[1]
+      const advice = reason.startsWith('PDF_QR')
+        ? 'Не удалось создать QR-код. Проверьте выбранную ссылку в разделе «Контакты». Код: QR.'
+        : reason === 'PDF_IMAGE_PORTRAIT'
+          ? 'Не удалось прочитать портрет. Загрузите его ещё раз. Код: PHOTO.'
+          : reason === 'PDF_IMAGE_PROOF'
+            ? 'Не удалось прочитать фото кейса. Загрузите его ещё раз. Код: PROOF.'
+            : reason === 'PDF_IMAGE_TEMPLATE'
+              ? 'Не удалось загрузить изображение шаблона. Попробуйте повторить подготовку. Код: TEMPLATE.'
+              : slideNumber
+                ? `Не удалось подготовить слайд ${slideNumber}. Код: SLIDE-${slideNumber}.`
+                : reason === 'PDF_FINALIZE'
+                  ? 'Браузер не смог завершить сборку PDF. Код: FINALIZE.'
+                  : reason === 'PDF_BLOB_URL'
+                    ? 'Браузер не смог подготовить файл к скачиванию. Код: DOWNLOAD.'
+                    : 'Не удалось собрать PDF. Код: UNKNOWN.'
+      setErrors([advice])
       setPdfStatus('error')
     } finally {
       if (generation === pdfGenerationRef.current) {

@@ -1,5 +1,6 @@
 import { toJpeg } from 'html-to-image'
 import { jsPDF } from 'jspdf'
+import QRCode from 'qrcode'
 import type { MediaKitData } from '../model'
 
 const SLIDE_WIDTH = 1280
@@ -14,11 +15,12 @@ type LinkZone = {
 }
 
 export type GeneratedPdf = {
-  blob: Blob
+  blob?: Blob
+  dataUri?: string
   fileName: string
 }
 
-async function waitForImage(image: HTMLImageElement, timeoutMs = 8000) {
+async function waitForImage(image: HTMLImageElement, timeoutMs = 20000) {
   const startedAt = performance.now()
   while (!image.complete) {
     if (performance.now() - startedAt > timeoutMs) {
@@ -31,30 +33,85 @@ async function waitForImage(image: HTMLImageElement, timeoutMs = 8000) {
   }
 }
 
-async function waitForQr(container: HTMLElement, data: MediaKitData) {
-  if (!data.qrTarget || container.querySelector('.mk-qr-block img')) return
-  await new Promise<void>((resolve, reject) => {
-    const startedAt = performance.now()
-    const check = () => {
-      if (container.querySelector('.mk-qr-block img')) {
-        resolve()
-        return
-      }
-      if (performance.now() - startedAt > 5000) {
-        reject(new Error('QR-код не успел сформироваться'))
-        return
-      }
-      requestAnimationFrame(check)
+async function ensureQr(container: HTMLElement, data: MediaKitData): Promise<() => void> {
+  if (!data.qrTarget) return () => undefined
+
+  const targetUrl = {
+    telegram: data.telegramUrl,
+    instagram: data.instagramUrl,
+    vk: data.vkUrl,
+    website: data.website,
+  }[data.qrTarget]?.trim()
+  if (!targetUrl) throw new Error('PDF_QR_LINK')
+
+  const existing = container.querySelector<HTMLImageElement>('.mk-qr-block img')
+  if (existing?.complete && existing.naturalWidth > 0) return () => undefined
+
+  let qrDataUrl: string
+  try {
+    qrDataUrl = await QRCode.toDataURL(targetUrl, {
+      width: 220,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+      color: { dark: '#111111', light: '#ffffff' },
+    })
+  } catch {
+    try {
+      const svg = await QRCode.toString(targetUrl, {
+        type: 'svg',
+        width: 220,
+        margin: 1,
+        errorCorrectionLevel: 'M',
+        color: { dark: '#111111', light: '#ffffff' },
+      })
+      qrDataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
+    } catch {
+      throw new Error('PDF_QR_GENERATION')
     }
-    check()
-  })
+  }
+
+  const ready = container.querySelector<HTMLImageElement>('.mk-qr-block img')
+  if (ready?.complete && ready.naturalWidth > 0) return () => undefined
+
+  const slide = container.querySelector<HTMLElement>('.media-slide:last-child .mk-s4-left')
+  if (!slide) throw new Error('PDF_QR_LAYOUT')
+  const block = document.createElement('div')
+  block.className = 'mk-qr-block'
+  const link = document.createElement('a')
+  link.href = targetUrl
+  link.dataset.pdfUrl = targetUrl
+  const image = document.createElement('img')
+  image.src = qrDataUrl
+  image.alt = 'QR-код'
+  link.appendChild(image)
+  block.appendChild(link)
+  slide.appendChild(block)
+  try {
+    await waitForImage(image)
+  } catch {
+    block.remove()
+    throw new Error('PDF_QR_IMAGE')
+  }
+  return () => block.remove()
 }
 
 async function prepareForCapture(container: HTMLElement, data: MediaKitData) {
-  await waitForQr(container, data)
-  await document.fonts?.ready
-  const images = Array.from(container.querySelectorAll<HTMLImageElement>('.media-slide img'))
-  await Promise.all(images.map(waitForImage))
+  const removeTemporaryQr = await ensureQr(container, data)
+  try {
+    await Promise.race([
+      document.fonts?.ready ?? Promise.resolve(),
+      new Promise<void>((resolve) => window.setTimeout(resolve, 2000)),
+    ])
+    const images = Array.from(container.querySelectorAll<HTMLImageElement>('.media-slide img'))
+    await Promise.all(images.map(waitForImage))
+    return removeTemporaryQr
+  } catch (error) {
+    removeTemporaryQr()
+    const description = error instanceof Error ? error.message : ''
+    if (description.includes('mk-s1-portrait')) throw new Error('PDF_IMAGE_PORTRAIT', { cause: error })
+    if (description.includes('mk-case-proof')) throw new Error('PDF_IMAGE_PROOF', { cause: error })
+    throw new Error('PDF_IMAGE_TEMPLATE', { cause: error })
+  }
 }
 
 function nextPaint() {
@@ -202,7 +259,8 @@ export async function exportMediaKitPdf(container: HTMLElement, data: MediaKitDa
     throw new Error(`Ожидалось 4 страницы медиакита, найдено: ${slides.length}`)
   }
 
-  await prepareForCapture(container, data)
+  const removeTemporaryQr = await prepareForCapture(container, data)
+  try {
 
   const pdf = new jsPDF({
     orientation: 'landscape',
@@ -240,7 +298,16 @@ export async function exportMediaKitPdf(container: HTMLElement, data: MediaKitDa
     }
 
     if (index > 0) pdf.addPage([SLIDE_WIDTH, SLIDE_HEIGHT], 'landscape')
-    pdf.addImage(image, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST')
+    try {
+      pdf.addImage(image, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST')
+    } catch {
+      try {
+        image = await captureSlideFallback(slide)
+        pdf.addImage(image, 'JPEG', 0, 0, pageWidth, pageHeight, undefined, 'FAST')
+      } catch (error) {
+        throw new Error(`Не удалось подготовить слайд ${index + 1}`, { cause: error })
+      }
+    }
 
     const xRatio = pageWidth / SLIDE_WIDTH
     const yRatio = pageHeight / SLIDE_HEIGHT
@@ -256,11 +323,26 @@ export async function exportMediaKitPdf(container: HTMLElement, data: MediaKitDa
   }
 
   const personName = safeFileNamePart(data.fullName)
-  pdf.setProperties({
-    title: `Медиакит — ${personName}`,
-    subject: 'Медиакит турагента',
-    creator: 'Конструктор медиакита',
-  })
+  try {
+    pdf.setProperties({
+      title: `Медиакит — ${personName}`,
+      subject: 'Медиакит турагента',
+      creator: 'Конструктор медиакита',
+    })
+  } catch {
+    // Метаданные не должны препятствовать скачиванию готовых страниц.
+  }
   const fileName = `Media Kit — ${personName}.pdf`
-  return { blob: pdf.output('blob'), fileName }
+  try {
+    return { blob: pdf.output('blob'), fileName }
+  } catch {
+    try {
+      return { dataUri: pdf.output('datauristring'), fileName }
+    } catch (error) {
+      throw new Error('PDF_FINALIZE', { cause: error })
+    }
+  }
+  } finally {
+    removeTemporaryQr()
+  }
 }
