@@ -139,11 +139,11 @@ function SlideOne({ data }: MediaKitPreviewProps) {
       <PageNumber page="01" />
       <div className={`mk-s1-specialization ${densityClass(data.specialization, 30, 44)}`}>ТУРАГЕНТ · {present(data.specialization, '[СПЕЦИАЛИЗАЦИЯ]')}</div>
       <h2 className="mk-s1-title">КТО Я</h2>
-      <p className={`mk-s1-about ${densityClass(data.about, 280, 330)}`}>{present(data.about, '[2–4 предложения о себе, опыте и подходе к работе]')}</p>
+      <p className={`mk-s1-about ${densityClass(data.about, 220, 280)}`}>{present(data.about, '[2–4 предложения о себе, опыте и подходе к работе]')}</p>
 
       <div className="mk-s1-yellow" />
       <h3 className={`mk-s1-name ${densityClass(data.fullName, 30, 40)}`}>{present(data.fullName, 'ИМЯ ФАМИЛИЯ')}</h3>
-      <p className={`mk-s1-positioning ${densityClass(data.positioning, 120, 150)}`}>« {present(data.positioning, 'Я помогаю подобрать отдых с учётом ваших пожеланий')} »</p>
+      <p className={`mk-s1-positioning ${densityClass(data.positioning, 95, 120)}`}>« {present(data.positioning, 'Я помогаю подобрать отдых с учётом ваших пожеланий')} »</p>
       <h4 className="mk-s1-directions-title">МОИ НАПРАВЛЕНИЯ</h4>
       <List items={destinations.length ? destinations : ['Направление 1', 'Направление 2']} className="mk-s1-directions" />
 

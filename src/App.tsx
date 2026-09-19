@@ -87,7 +87,10 @@ export function App() {
     } catch (error) {
       if (generation !== pdfGenerationRef.current) return
       console.error(error)
-      setErrors(['Не удалось собрать PDF. Попробуйте ещё раз или откройте сайт в актуальной версии браузера.'])
+      const slideNumber = error instanceof Error ? error.message.match(/слайд (\d+)/)?.[1] : undefined
+      setErrors([slideNumber
+        ? `Не удалось подготовить слайд ${slideNumber}. Попробуйте повторить подготовку.`
+        : 'Не удалось собрать PDF. Попробуйте повторить подготовку.'])
       setPdfStatus('error')
     } finally {
       if (generation === pdfGenerationRef.current) {

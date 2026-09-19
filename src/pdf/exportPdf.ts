@@ -19,31 +19,16 @@ export type GeneratedPdf = {
 }
 
 async function waitForImage(image: HTMLImageElement, timeoutMs = 8000) {
-  if (image.complete && image.naturalWidth > 0) {
-    try {
-      await image.decode?.()
-    } catch {
-      if (!image.naturalWidth) throw new Error('Изображение не удалось декодировать')
+  const startedAt = performance.now()
+  while (!image.complete) {
+    if (performance.now() - startedAt > timeoutMs) {
+      throw new Error(`Истекло время ожидания изображения: ${image.className || image.alt || 'без подписи'}`)
     }
-    return
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 50))
   }
-
-  await new Promise<void>((resolve, reject) => {
-    const timeout = window.setTimeout(() => reject(new Error('Истекло время ожидания изображения')), timeoutMs)
-    let settled = false
-    const finish = (error?: Error) => {
-      if (settled) return
-      settled = true
-      window.clearTimeout(timeout)
-      if (error) reject(error)
-      else resolve()
-    }
-    image.addEventListener('load', () => finish(), { once: true })
-    image.addEventListener('error', () => finish(new Error('Изображение не загрузилось')), { once: true })
-    if (image.complete) {
-      finish(image.naturalWidth > 0 ? undefined : new Error('Изображение не загрузилось'))
-    }
-  })
+  if (!image.naturalWidth) {
+    throw new Error(`Изображение не загрузилось: ${image.className || image.alt || 'без подписи'}`)
+  }
 }
 
 async function waitForQr(container: HTMLElement, data: MediaKitData) {
@@ -155,6 +140,36 @@ async function captureSlide(slide: HTMLElement, pixelRatio: number) {
   }
 }
 
+async function captureSlideFallback(slide: HTMLElement) {
+  const { default: html2canvas } = await import('html2canvas')
+  const canvas = await html2canvas(slide, {
+    backgroundColor: '#ffffff',
+    scale: 1,
+    width: SLIDE_WIDTH,
+    height: SLIDE_HEIGHT,
+    windowWidth: SLIDE_WIDTH,
+    windowHeight: SLIDE_HEIGHT,
+    useCORS: true,
+    logging: false,
+    imageTimeout: 10000,
+    onclone: (_document, clonedSlide) => {
+      clonedSlide.style.transform = 'none'
+      clonedSlide.style.transformOrigin = '0 0'
+      const viewport = clonedSlide.parentElement
+      if (viewport) {
+        viewport.style.width = `${SLIDE_WIDTH}px`
+        viewport.style.height = `${SLIDE_HEIGHT}px`
+        viewport.style.maxWidth = 'none'
+        viewport.style.overflow = 'visible'
+      }
+    },
+  })
+  if (canvas.width !== SLIDE_WIDTH || canvas.height !== SLIDE_HEIGHT) {
+    throw new Error('Резервный рендерер создал страницу неверного размера')
+  }
+  return canvas.toDataURL('image/jpeg', 0.9)
+}
+
 function collectLinkZones(slide: HTMLElement): LinkZone[] {
   const slideRect = slide.getBoundingClientRect()
   const scaleX = slideRect.width / SLIDE_WIDTH || 1
@@ -200,7 +215,7 @@ export async function exportMediaKitPdf(container: HTMLElement, data: MediaKitDa
   const pageHeight = pdf.internal.pageSize.getHeight()
   const isMobileDevice = /Android|iP(?:hone|ad|od)/.test(navigator.userAgent)
     || (navigator.maxTouchPoints > 1 && window.innerWidth <= 1024)
-  const pixelRatio = isMobileDevice ? 1.25 : 1.5
+  const pixelRatio = isMobileDevice ? 1 : 1.5
 
   for (let index = 0; index < slides.length; index += 1) {
     const slide = slides[index]
@@ -208,8 +223,20 @@ export async function exportMediaKitPdf(container: HTMLElement, data: MediaKitDa
     let image: string
     try {
       image = await captureSlide(slide, pixelRatio)
-    } catch {
-      image = await captureSlide(slide, 1)
+    } catch (primaryError) {
+      try {
+        image = pixelRatio > 1 ? await captureSlide(slide, 1) : await captureSlideFallback(slide)
+      } catch (secondError) {
+        if (pixelRatio > 1) {
+          try {
+            image = await captureSlideFallback(slide)
+          } catch (fallbackError) {
+            throw new Error(`Не удалось подготовить слайд ${index + 1}`, { cause: [primaryError, secondError, fallbackError] })
+          }
+        } else {
+          throw new Error(`Не удалось подготовить слайд ${index + 1}`, { cause: [primaryError, secondError] })
+        }
+      }
     }
 
     if (index > 0) pdf.addPage([SLIDE_WIDTH, SLIDE_HEIGHT], 'landscape')
